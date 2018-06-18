@@ -1,0 +1,2 @@
+# wlibLogger
+C++ usefull(?) Logger
