@@ -133,6 +133,7 @@ private:
 
 struct LoggerStream : public std::iostream {
 	LoggerStream(const Logger::Level level);
+	virtual ~LoggerStream() {}
 private:
 	LoggerBuffer logger;
 };
