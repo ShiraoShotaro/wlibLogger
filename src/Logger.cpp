@@ -1,6 +1,7 @@
 ﻿#define _CRT_SECURE_NO_WARNINGS
 #include "Logger.hpp"
 #include <mutex>
+#include <memory>
 #include <iomanip>
 #include <thread>
 #include <sstream>
@@ -30,84 +31,40 @@ std::string changeColorToYellow(void) { SetConsoleTextAttribute(GetStdHandle(STD
 std::string resetColorStr(void) { return ""; }
 void resetColorPrc(void){ SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE); }
 #endif
-
+// redirected stream
+std::unique_ptr<wlib::LoggerStream> _cout;
+std::unique_ptr<wlib::LoggerStream> _cerr;
 };
 
-void wlib::Logger::setRedirectionCout(const Level dst_level)
-{
+// Extern variable instances
+wlib::LoggerStream wlib::trace;
+wlib::LoggerStream wlib::perf;
+wlib::LoggerStream wlib::debug;
+wlib::LoggerStream wlib::info;
+wlib::LoggerStream wlib::warn;
+wlib::LoggerStream wlib::error;
+wlib::LoggerStream wlib::fatal;
+
+void wlib::Logger::setRedirectionCout(const Level dst_level){
+	if (dst_level != kLevelNum) {
+		_cout = std::make_unique<LoggerStream>(dst_level);
+		_cout->rdbuf(std::cout.rdbuf());
+	}
 }
 
-void wlib::Logger::setRedirectionCerr(const Level dst_level)
-{
+void wlib::Logger::setRedirectionCerr(const Level dst_level){
+
 }
 
 void wlib::Logger::setDestination(const Destination trace, const Destination performance, const Destination debug, const Destination info, const Destination warning, const Destination error, const Destination fatal)
 {
 }
 
-// Constructor(nop)
-wlib::Logger::Logger(void){}
+std::string wlib::Logger::source_information(const std::string file, const std::string func, const int line)
+{ return std::string(file + "::" + func + "(" + std::to_string(line) + ")"); }
 
-void wlib::Logger::_printTrace(const char buffer[]) const
-{
-}
-
-void wlib::Logger::_printPerformance(const char buffer[]) const
-{
-}
-
-void wlib::Logger::_printDebug(const char buffer[]) const
-{
-}
-
-void wlib::Logger::_printInformation(const char buffer[]) const
-{
-}
-
-void wlib::Logger::_printWarning(const char buffer[]) const
-{
-}
-
-void wlib::Logger::_printError(const char buffer[]) const
-{
-}
-
-void wlib::Logger::_printFatal(const char buffer[]) const
-{
-}
-
-void wlib::Logger::_print(const char buffer[], const Level level) const
-{
-}
-
-// INFORMATION
-void wlib::Logger::information(const std::string & text) const{
-	this->_write(kInfomation, text);
-}
-
-// WARNING
-void wlib::Logger::warning(const std::string & text) const{
-	this->_write(kWarning, text);
-}
-
-// ERROR
-void wlib::Logger::error(const std::string & text) const{
-	this->_write(kError, text);
-}
-
-// ABORT
-void wlib::Logger::abort(const std::string & text) const{
-	this->_write(kAbort, text);
-}
-
-// ログレベルの変更
-void wlib::Logger::changeLogLevel(LogLevel log_level) {
-	//for thread safe, lock with mutex
-	std::lock_guard<std::mutex> lock(_mutex);
-	this->log_level_ = log_level;
-}
-
-void wlib::Logger::_write(const LogStatus status, const std::string & text) const{
+wlib::Logger::Logger(void) : _distinations({kOut, kOut, kOut, kOut, kErr, kErr, kErr}) {}
+void wlib::Logger::_print(const char buffer[], const Level level) const{
 	//[STAT] 2017-10-15 03:47:24 Th:[thread_no] [filename.cpp]::[function]([line])
 	//_____[text]
 	//_____[multi text]
@@ -187,20 +144,15 @@ void wlib::Logger::_write(const LogStatus status, const std::string & text) cons
 }
 
 // ======== Stream ========
-wlib::LoggerStreambuf::LoggerStreambuf(const Logger::LogStatus _status, const std::string file, const std::string func, const int line)
-	: Logger(file, func, line) ,status(_status){
-	setp(this->buffer, this->buffer + kBufferSize - 2);
-	setg(this->buffer, this->buffer, this->buffer + kBufferSize - 2);
-}
-
-wlib::LoggerStreambuf::~LoggerStreambuf(){
-	this->sync();
-}
-
-int wlib::LoggerStreambuf::sync(void){
-	*pptr() = '\0';    // 終端文字を追加します。
-	std::string temp(this->buffer);
-	if(!temp.empty() && temp.find_first_not_of("\n") != std::string::npos) this->_write(status, temp);
-	pbump(static_cast<int>(pbase() - pptr()));    // 書き込み位置をリセットします。
+wlib::LoggerBuffer::LoggerBuffer(const Logger::Level _level)
+	: Logger(), level(_level) { setp(this->buffer, this->buffer + kBufferSize - 2); setg(this->buffer, this->buffer, this->buffer + kBufferSize - 2); }
+wlib::LoggerBuffer::~LoggerBuffer(){}
+int wlib::LoggerBuffer::sync(void){ 
+	*pptr() = '\0';
+	this->_print(this->buffer, this->level);
+	pbump(static_cast<int>(pbase() - pptr()));
 	return 0;
 }
+wlib::LoggerStream::LoggerStream(const Logger::Level _level)
+	: std::iostream(&logger), logger(_level)
+{}

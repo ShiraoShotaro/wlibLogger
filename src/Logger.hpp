@@ -72,7 +72,7 @@ public:
 	/// @brief set cout stream redirection source.
 	///
 	/// This function is NOT threadsafe.
-	/// If dst_level is kLevelNum, this function will abort.
+	/// If dst_level is kLevelNum, this function will do nothing.
 	/// @param [in] dst_level level of redirecting distination
 	static void setRedirectionCout(
 		const Level dst_level
@@ -81,7 +81,7 @@ public:
 	/// @brief set cerr stream redirection source.
 	///
 	/// This function is NOT threadsafe.
-	/// If dst_level is kLevelNum, this function will abort.
+	/// If dst_level is kLevelNum, this function will do nothing.
 	/// @param [in] dst_level level of redirecting distination
 	static void setRedirectionCerr(
 		const Level dst_level
@@ -114,40 +114,27 @@ public:
 
 protected:
 	Logger(void);
+	void _print(const char buffer[], const Level level) const;
+
+private:
 
 	std::array<Destination, Level::kLevelNum> _distinations;
-
-	void _printTrace(const char buffer[]) const;
-	void _printPerformance(const char buffer[]) const;
-	void _printDebug(const char buffer[]) const;
-	void _printInformation(const char buffer[]) const;
-	void _printWarning(const char buffer[]) const;
-	void _printError(const char buffer[]) const;
-	void _printFatal(const char buffer[]) const;
-
-private:
-	void _print(const char buffer[], const Level level) const;
 };
 
-
-namespace {
 struct LoggerBuffer : public std::streambuf, public Logger {
-public:
-	LoggerBuffer() = default;
+	LoggerBuffer(const Logger::Level level);
 	virtual ~LoggerBuffer();
 private:
+	const Logger::Level level;
 	virtual int sync(void) override;
 	static constexpr size_t kBufferSize = 2048;
 	char buffer[kBufferSize];
 };
 
 struct LoggerStream : public std::iostream {
-	LoggerStream() = delete;
-	LoggerStream(const Logger::Level level) : std::iostream(&logger) {}
+	LoggerStream(const Logger::Level level);
 private:
-	Logger::Level level;
 	LoggerBuffer logger;
-};
 };
 
 extern LoggerStream trace;

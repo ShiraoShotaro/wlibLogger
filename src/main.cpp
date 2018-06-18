@@ -3,7 +3,7 @@
 using namespace wlib;
 int main(void) {
 
-
+	LoggerStream hoge();
 	std::cout << "Before Redirect of cout" << std::endl;
 
 	std::cerr << "Before Redirect of cerr" << std::endl;
