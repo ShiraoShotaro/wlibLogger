@@ -35,15 +35,10 @@ namespace wlib {
 
 /// @brief Logging class
 ///
-/// それぞれのインスタンスにタグ付けができ、また標準出力、ファイル出力の有効化、無効化ができます。
-/// 初期化に関しては、changeLogLevel関数にてログレベルの変更を一番最初に適宜切り替えて下さい。ログレベルはkAll, kWarningAndError, kErrorOnly, kNoLoggingの４レベルで、それぞれすべて出力、警告及びエラー、エラーのみ、何も出力しない、となっています。この時の警告（Warning）は「続行可能なエラー」で、エラー（Error）は「続行不可能なエラー」の区分分けとしています。ログレベルはプログラムにおいて共通です。
-/// 使い方は、まずコンストラクタを呼び出し、引数にてタグを指定します。また状況に応じて、標準出力、ファイル出力の有効、無効を切り替えて下さい。
-/// そしてその後は、ログを出力したいタイミングで、information, warning, error関数を使用します。
-/// 一番簡単な使い方は`Logger("Hogehoge").information("foobar");`とすることです。必ずしもすべての場合においてこの方法が最適とは限りません。
-/// また、すべての関数、機能は、スレッドセーフが保証されています。
-/// @version 2018.01
-/// @since 2017.10
-/// @author S.Shirao
+/// You can use this log class like "std::cout" or "std::cerr".
+/// There are 7 levels for logging.
+/// Watch Level Description, and understand these means.
+///
 class Logger{
 public:
 
@@ -151,6 +146,9 @@ protected:
 private:
 };
 
+/// @brief Extended of std::streambuf and Logger class.
+///
+/// This class is not important for you.
 struct LoggerBuffer : public std::streambuf, public Logger {
 	LoggerBuffer(const Logger::Level level);
 	virtual ~LoggerBuffer();
@@ -161,6 +159,9 @@ private:
 	char buffer[kBufferSize];
 };
 
+/// @brief Extended of std::iostream.
+///
+/// This class is not important for you.
 struct LoggerStream : public std::iostream {
 	LoggerStream(const Logger::Level level);
 	virtual ~LoggerStream() {}
@@ -168,13 +169,13 @@ private:
 	LoggerBuffer logger;
 };
 
-extern LoggerStream trace;
-extern LoggerStream perf;
-extern LoggerStream debug;
-extern LoggerStream info;
-extern LoggerStream warn;
-extern LoggerStream error;
-extern LoggerStream fatal;
+extern LoggerStream trace;	///< Trace Log
+extern LoggerStream perf;	///< Performance Log
+extern LoggerStream debug;	///< Debugging Log
+extern LoggerStream info;	///< Information Log
+extern LoggerStream warn;	///< Warning Log
+extern LoggerStream error;	///< Error Log
+extern LoggerStream fatal;	///< Fatal Log
 
 };
 
