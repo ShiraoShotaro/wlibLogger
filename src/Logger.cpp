@@ -39,18 +39,12 @@ void resetColorPrc(void){ SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE
 // redirected stream
 std::streambuf * _cout_buf = nullptr;
 std::streambuf * _cerr_buf = nullptr;
-};
-struct _cout_deleter{
-	void operator()(wlib::LoggerStream * ptr) const
-	{ if(_cout_buf != nullptr) std::cout.rdbuf(_cout_buf); _cout_buf = nullptr; };
-};
-struct _cerr_deleter{
-	void operator()(wlib::LoggerStream * ptr) const
-	{ if(_cerr_buf != nullptr) std::cerr.rdbuf(_cerr_buf); _cerr_buf = nullptr; };
-};
-namespace{
-std::unique_ptr<wlib::LoggerStream, _cout_deleter> _cout;
-std::unique_ptr<wlib::LoggerStream, _cerr_deleter> _cerr;
+auto _cout_deleter = [](wlib::LoggerStream * ptr)
+{ if(_cout_buf != nullptr) std::cout.rdbuf(_cout_buf); _cout_buf = nullptr; };
+auto _cerr_deleter = [](wlib::LoggerStream * ptr)
+{ if(_cerr_buf != nullptr) std::cerr.rdbuf(_cerr_buf); _cerr_buf = nullptr; };
+std::unique_ptr<wlib::LoggerStream, decltype(_cout_deleter)> _cout;
+std::unique_ptr<wlib::LoggerStream, decltype(_cerr_deleter)> _cerr;
 };
 
 // Extern variable instances
@@ -64,14 +58,16 @@ wlib::LoggerStream wlib::fatal(wlib::Logger::kFatal);
 
 void wlib::Logger::setRedirectionCout(const Level dst_level){
 	if (dst_level != kLevelNum) {
-		_cout = new LoggerStream(dst_level);
+		_cout = std::move(std::unique_ptr<LoggerStream, decltype(_cout_deleter)>
+			(new LoggerStream(dst_level), std::move(_cout_deleter)));
 		_cout_buf = std::cout.rdbuf(_cout->rdbuf());
 	}
 }
 
 void wlib::Logger::setRedirectionCerr(const Level dst_level){
 	if (dst_level != kLevelNum) {
-		_cerr = std::move(std::unique_ptr<LoggerStream, _cerr_deleter>(new LoggerStream(dst_level), _cerr_deleter));
+		_cerr = std::move(std::unique_ptr<LoggerStream, decltype(_cerr_deleter)>
+			(new LoggerStream(dst_level), std::move(_cerr_deleter)));
 		_cerr_buf = std::cerr.rdbuf(_cerr->rdbuf());
 	}
 }
