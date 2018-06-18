@@ -24,6 +24,8 @@ int main(void) {
 
 	error << "This is error output" << std::endl;
 
+	std::cerr << "HOGEHOGE" << std::endl;
+
 	fatal << "This is fatal output" << std::endl;
 
 	trace << SRCINFO << "This is trace output" << std::endl;

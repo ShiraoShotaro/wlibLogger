@@ -11,6 +11,8 @@
 
 namespace {
 std::mutex _mutex;
+std::array<wlib::Logger::Destination, wlib::Logger::kLevelNum> _distinations
+	{wlib::Logger::kOut, wlib::Logger::kOut, wlib::Logger::kOut, wlib::Logger::kOut, wlib::Logger::kErr, wlib::Logger::kErr, wlib::Logger::kErr };
 
 // Logging level
 #ifdef _DEBUG
@@ -36,12 +38,13 @@ std::string changeColorToFatal(void) { SetConsoleTextAttribute(GetStdHandle(STD_
 std::string resetColorStr(void) { return ""; }
 void resetColorPrc(void){ SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE); }
 #endif
-// redirected stream
+// redirect in deleter
 std::streambuf * _cout_buf = nullptr;
 std::streambuf * _cerr_buf = nullptr;
-//auto _cerr_deleter = [](wlib::LoggerStream * ptr)
-//{ if(_cerr_buf != nullptr) std::cerr.rdbuf(_cerr_buf); _cerr_buf = nullptr; };
-//std::unique_ptr<wlib::LoggerStream, decltype(_cerr_deleter)> _cerr;
+struct _cout_deleter { void operator()(wlib::LoggerStream * ptr) { std::cout.rdbuf(_cout_buf); } };
+struct _cerr_deleter { void operator()(wlib::LoggerStream * ptr) { std::cerr.rdbuf(_cerr_buf); } };
+std::unique_ptr<wlib::LoggerStream, _cout_deleter> _cout;
+std::unique_ptr<wlib::LoggerStream, _cerr_deleter> _cerr;
 };
 
 // Extern variable instances
@@ -55,38 +58,46 @@ wlib::LoggerStream wlib::fatal(wlib::Logger::kFatal);
 
 void wlib::Logger::setRedirectionCout(const Level dst_level){
 	if (dst_level != kLevelNum) {
-		auto _cout_deleter = [](wlib::LoggerStream * ptr){ std::cout.rdbuf(_cout_buf); };
-		std::unique_ptr<wlib::LoggerStream, decltype(_cout_deleter)> _cout(new LoggerStream(dst_level), std::move(_cout_deleter));
+		_cout = std::unique_ptr<wlib::LoggerStream, _cout_deleter>(new LoggerStream(dst_level));
 		_cout_buf = std::cout.rdbuf(_cout->rdbuf());
 	}
 }
 
 void wlib::Logger::setRedirectionCerr(const Level dst_level){
 	if (dst_level != kLevelNum) {
-		//_cerr = std::move(std::unique_ptr<LoggerStream, decltype(_cerr_deleter)>
-		//	(new LoggerStream(dst_level), std::move(_cerr_deleter)));
-		//_cerr_buf = std::cerr.rdbuf(_cerr->rdbuf());
+		_cerr = std::unique_ptr<wlib::LoggerStream, _cerr_deleter>(new LoggerStream(dst_level));
+		_cerr_buf = std::cerr.rdbuf(_cerr->rdbuf());
 	}
 }
 
+wlib::Logger::Logger(void) {}
 void wlib::Logger::setDestination(const Destination trace, const Destination performance, const Destination debug, const Destination info, const Destination warning, const Destination error, const Destination fatal)
 {
+	_distinations.at(kTrace) = trace;
+	_distinations.at(kPerformance) = performance;
+	_distinations.at(kDebug) = debug;
+	_distinations.at(kInfo) = info;
+	_distinations.at(kWarning) = warning;
+	_distinations.at(kError) = error;
+	_distinations.at(kFatal) = fatal;
 }
 
 std::string wlib::Logger::source_information(const std::string file, const std::string func, const int line)
 { return std::string(file + "::" + func + "(" + std::to_string(line) + ")"); }
 
-wlib::Logger::Logger(void) : _distinations({kOut, kOut, kOut, kOut, kErr, kErr, kErr}) {}
 void wlib::Logger::_print(const char buffer[], const Level level) const{
 	//[STAT] 2017-10-15 03:47:24 Th:[thread_no] [filename.cpp]::[function]([line])
 
-	//error check
-	std::string buffer_str(buffer);
-	if (buffer_str.size() == 0) return;
-
 	//log level
 	if (static_cast<size_t>(level) < static_cast<size_t>(kShowLogLevel)) return;
-	
+
+	std::string buffer_str(buffer);
+	if (buffer_str.find_first_of("\r\n\0") == 0) {
+		if (_distinations.at(level) == kOut) std::fprintf(stdout, "%s", buffer);
+		else std::fprintf(stderr, "%s", buffer);
+		return;
+	}
+		
 	//get the now date and time
 	const auto now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
 	const std::tm * local_now(std::localtime(&now));
@@ -121,7 +132,7 @@ void wlib::Logger::_print(const char buffer[], const Level level) const{
 		//write down to standard io
 		output_text_sstream << reset_color_str;
 
-		if (this->_distinations.at(level) == kOut) std::fprintf(stdout, "%s", output_text_sstream.str().c_str());
+		if (_distinations.at(level) == kOut) std::fprintf(stdout, "%s", output_text_sstream.str().c_str());
 		else std::fprintf(stderr, "%s", output_text_sstream.str().c_str());
 	}
 
@@ -133,6 +144,7 @@ wlib::LoggerBuffer::LoggerBuffer(const Logger::Level _level)
 	: Logger(), level(_level) { setp(this->buffer, this->buffer + kBufferSize - 2); setg(this->buffer, this->buffer, this->buffer + kBufferSize - 2); }
 wlib::LoggerBuffer::~LoggerBuffer(){}
 int wlib::LoggerBuffer::sync(void){ 
+	if (pptr() == gptr()) return 0;
 	*pptr() = '\0';
 	this->_print(this->buffer, this->level);
 	pbump(static_cast<int>(pbase() - pptr()));

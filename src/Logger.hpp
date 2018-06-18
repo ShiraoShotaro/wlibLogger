@@ -117,8 +117,6 @@ protected:
 	void _print(const char buffer[], const Level level) const;
 
 private:
-
-	std::array<Destination, Level::kLevelNum> _distinations;
 };
 
 struct LoggerBuffer : public std::streambuf, public Logger {
