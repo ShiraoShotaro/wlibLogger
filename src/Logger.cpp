@@ -8,6 +8,8 @@
 #include <chrono>
 #include <ctime>
 #include <cstdio>
+#include <array>
+#include <algorithm>
 
 namespace {
 std::mutex _mutex;
@@ -23,11 +25,11 @@ constexpr wlib::Logger::Level kShowLogLevel = wlib::Logger::kInfo;
 
 // String Coloring
 #if defined(__unix__) || defined(__linux__)
-std::string changeColorToGreen(void) { return "\033[31m"; }
-std::string changeColorToRed(void) { return "\033[31m"; }
-std::string changeColorToYellow(void) { return "\033[34m"; }
-std::string changeColorToFatal(void) { return "\033[33m"; }
-std::string resetColorStr(void) { return "\033[0m"; }
+std::string changeColorToGreen(void) { return "\x1b[1m\x1b[32m"; }
+std::string changeColorToRed(void) { return "\x1b[1m\x1b[31m"; }
+std::string changeColorToYellow(void) { return "\x1b[1m\x1b[33m"; }
+std::string changeColorToFatal(void) { return "\x1b[41m\x1b[30m"; }
+std::string resetColorStr(void) { return "\x1b[0m"; }
 void resetColorPrc(void) {}
 #elif defined(_WIN64) || defined(_WIN32)
 #include <windows.h>
@@ -92,12 +94,9 @@ void wlib::Logger::_print(const char buffer[], const Level level) const{
 	if (static_cast<size_t>(level) < static_cast<size_t>(kShowLogLevel)) return;
 
 	std::string buffer_str(buffer);
-	if (buffer_str.find_first_of("\r\n\0") == 0) {
-		if (_distinations.at(level) == kOut) std::fprintf(stdout, "%s", buffer);
-		else std::fprintf(stderr, "%s", buffer);
-		return;
-	}
-		
+	if (buffer_str.find_first_of("\r\n\0") == 0) return;
+	std::replace(buffer_str.begin(), buffer_str.end(), '\n', ' ');
+
 	//get the now date and time
 	const auto now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
 	const std::tm * local_now(std::localtime(&now));
@@ -123,18 +122,14 @@ void wlib::Logger::_print(const char buffer[], const Level level) const{
 	}
 
 	output_text_sstream << " " << std::put_time(local_now, "%F %T") << " Th:" << std::this_thread::get_id();
-	output_text_sstream << " | " << buffer_str;
+	output_text_sstream << " | " << buffer_str << reset_color_str << "\n";
 
 	//for thread safe, lock with mutex
 	{
 		std::lock_guard<std::mutex> lock(_mutex);
-		
-		//write down to standard io
-		output_text_sstream << reset_color_str;
-
 		if (_distinations.at(level) == kOut) std::fprintf(stdout, "%s", output_text_sstream.str().c_str());
 		else std::fprintf(stderr, "%s", output_text_sstream.str().c_str());
-	}
+	} 
 
 	resetColorPrc();
 }

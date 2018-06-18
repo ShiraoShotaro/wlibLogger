@@ -16,6 +16,8 @@ int main(void) {
 
 	trace << "This is trace output" << std::endl;
 
+	perf << "This is Perform output" << std::endl;
+
 	debug << "This is debug output" << std::endl;
 
 	info << "This is info output" << std::endl;

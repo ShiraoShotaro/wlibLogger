@@ -17,7 +17,6 @@
 #ifndef WLIB_LOGGER_HPP_
 #define WLIB_LOGGER_HPP_
 
-#include <array>
 #include <string>
 #include <iostream>
 
@@ -85,6 +84,29 @@ public:
 	/// @param [in] dst_level level of redirecting distination
 	static void setRedirectionCerr(
 		const Level dst_level
+	);
+
+	/// @brief set Enable or Disable output each of destination.
+	///
+	/// This function is NOT threadsafe.
+	/// @brief [in] stdout Set true, and stdout output is enabled. Set false, it is disabled.
+	/// @brief [in] stderr Set true, and stderr output is enabled. Set false, it is disabled.
+	static void setOutputEnabled(
+		bool stdout,
+		bool stderr
+	);
+
+	/// @brief set Enable or Disable output each of level.
+	///
+	/// This function is NOT threadsafe.
+	static void setOutputEnabled(
+		bool trace,
+		bool performance,
+		bool debug,
+		bool info,
+		bool warning,
+		bool error,
+		bool fatal
 	);
 
 	/// @brief set log output destination.
