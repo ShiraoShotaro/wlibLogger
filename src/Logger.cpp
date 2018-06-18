@@ -23,7 +23,7 @@ constexpr wlib::Logger::Level kShowLogLevel = wlib::Logger::kInfo;
 #if defined(__unix__) || defined(__linux__)
 std::string changeColorToGreen(void) { return "\033[31m"; }
 std::string changeColorToRed(void) { return "\033[31m"; }
-std::string changeColorToYellow(void) { return "\033[33m"; }
+std::string changeColorToYellow(void) { return "\033[34m"; }
 std::string changeColorToFatal(void) { return "\033[33m"; }
 std::string resetColorStr(void) { return "\033[0m"; }
 void resetColorPrc(void) {}
@@ -37,8 +37,20 @@ std::string resetColorStr(void) { return ""; }
 void resetColorPrc(void){ SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE); }
 #endif
 // redirected stream
-std::unique_ptr<wlib::LoggerStream> _cout;
-std::unique_ptr<wlib::LoggerStream> _cerr;
+std::streambuf * _cout_buf = nullptr;
+std::streambuf * _cerr_buf = nullptr;
+};
+struct _cout_deleter{
+	void operator()(wlib::LoggerStream * ptr) const
+	{ if(_cout_buf != nullptr) std::cout.rdbuf(_cout_buf); _cout_buf = nullptr; };
+};
+struct _cerr_deleter{
+	void operator()(wlib::LoggerStream * ptr) const
+	{ if(_cerr_buf != nullptr) std::cerr.rdbuf(_cerr_buf); _cerr_buf = nullptr; };
+};
+namespace{
+std::unique_ptr<wlib::LoggerStream, _cout_deleter> _cout;
+std::unique_ptr<wlib::LoggerStream, _cerr_deleter> _cerr;
 };
 
 // Extern variable instances
@@ -52,15 +64,15 @@ wlib::LoggerStream wlib::fatal(wlib::Logger::kFatal);
 
 void wlib::Logger::setRedirectionCout(const Level dst_level){
 	if (dst_level != kLevelNum) {
-		_cout = std::make_unique<LoggerStream>(dst_level);
-		std::cout.rdbuf(_cout->rdbuf());
+		_cout = new LoggerStream(dst_level);
+		_cout_buf = std::cout.rdbuf(_cout->rdbuf());
 	}
 }
 
 void wlib::Logger::setRedirectionCerr(const Level dst_level){
 	if (dst_level != kLevelNum) {
-		_cerr = std::make_unique<LoggerStream>(dst_level);
-		std::cerr.rdbuf(_cerr->rdbuf());
+		_cerr = std::move(std::unique_ptr<LoggerStream, _cerr_deleter>(new LoggerStream(dst_level), _cerr_deleter));
+		_cerr_buf = std::cerr.rdbuf(_cerr->rdbuf());
 	}
 }
 
@@ -116,8 +128,8 @@ void wlib::Logger::_print(const char buffer[], const Level level) const{
 		//write down to standard io
 		output_text_sstream << reset_color_str;
 
-		if (this->_distinations.at(level) == kOut) std::fprintf(stdout, output_text_sstream.str().c_str());
-		else std::fprintf(stderr, output_text_sstream.str().c_str());
+		if (this->_distinations.at(level) == kOut) std::fprintf(stdout, "%s", output_text_sstream.str().c_str());
+		else std::fprintf(stderr, "%s", output_text_sstream.str().c_str());
 	}
 
 	resetColorPrc();

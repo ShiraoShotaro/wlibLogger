@@ -39,4 +39,6 @@ int main(void) {
 	fatal << SRCINFO << "This is fatal output" << std::endl;
 
 	getchar();
+
+	return 0;
 }
