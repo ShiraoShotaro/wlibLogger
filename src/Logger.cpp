@@ -7,27 +7,32 @@
 #include <sstream>
 #include <chrono>
 #include <ctime>
+#include <cstdio>
 
 namespace {
 std::mutex _mutex;
 
 // Logging level
 #ifdef _DEBUG
-constexpr wlib::Logger::Level kDefaultLogLevel = wlib::Logger::kTrace;
+constexpr wlib::Logger::Level kShowLogLevel = wlib::Logger::kTrace;
 #else
-constexpr wlib::Logger::Level kDefaultLogLevel = wlib::Logger::kInfo;
+constexpr wlib::Logger::Level kShowLogLevel = wlib::Logger::kInfo;
 #endif
 
 // String Coloring
 #if defined(__unix__) || defined(__linux__)
+std::string changeColorToGreen(void) { return "\033[31m"; }
 std::string changeColorToRed(void) { return "\033[31m"; }
 std::string changeColorToYellow(void) { return "\033[33m"; }
+std::string changeColorToFatal(void) { return "\033[33m"; }
 std::string resetColorStr(void) { return "\033[0m"; }
 void resetColorPrc(void) {}
 #elif defined(_WIN64) || defined(_WIN32)
 #include <windows.h>
-std::string changeColorToRed(void){ SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_RED | FOREGROUND_INTENSITY); return ""; }
+std::string changeColorToGreen(void) { SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_GREEN | FOREGROUND_INTENSITY); return ""; }
+std::string changeColorToRed(void) { SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_RED | FOREGROUND_INTENSITY); return ""; }
 std::string changeColorToYellow(void) { SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_GREEN | FOREGROUND_RED | FOREGROUND_INTENSITY); return ""; }
+std::string changeColorToFatal(void) { SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), BACKGROUND_RED | BACKGROUND_INTENSITY); return ""; }
 std::string resetColorStr(void) { return ""; }
 void resetColorPrc(void){ SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE); }
 #endif
@@ -37,23 +42,26 @@ std::unique_ptr<wlib::LoggerStream> _cerr;
 };
 
 // Extern variable instances
-wlib::LoggerStream wlib::trace;
-wlib::LoggerStream wlib::perf;
-wlib::LoggerStream wlib::debug;
-wlib::LoggerStream wlib::info;
-wlib::LoggerStream wlib::warn;
-wlib::LoggerStream wlib::error;
-wlib::LoggerStream wlib::fatal;
+wlib::LoggerStream wlib::trace(wlib::Logger::kTrace);
+wlib::LoggerStream wlib::perf(wlib::Logger::kPerformance);
+wlib::LoggerStream wlib::debug(wlib::Logger::kDebug);
+wlib::LoggerStream wlib::info(wlib::Logger::kInfo);
+wlib::LoggerStream wlib::warn(wlib::Logger::kWarning);
+wlib::LoggerStream wlib::error(wlib::Logger::kError);
+wlib::LoggerStream wlib::fatal(wlib::Logger::kFatal);
 
 void wlib::Logger::setRedirectionCout(const Level dst_level){
 	if (dst_level != kLevelNum) {
 		_cout = std::make_unique<LoggerStream>(dst_level);
-		_cout->rdbuf(std::cout.rdbuf());
+		std::cout.rdbuf(_cout->rdbuf());
 	}
 }
 
 void wlib::Logger::setRedirectionCerr(const Level dst_level){
-
+	if (dst_level != kLevelNum) {
+		_cerr = std::make_unique<LoggerStream>(dst_level);
+		std::cerr.rdbuf(_cerr->rdbuf());
+	}
 }
 
 void wlib::Logger::setDestination(const Destination trace, const Destination performance, const Destination debug, const Destination info, const Destination warning, const Destination error, const Destination fatal)
@@ -66,22 +74,14 @@ std::string wlib::Logger::source_information(const std::string file, const std::
 wlib::Logger::Logger(void) : _distinations({kOut, kOut, kOut, kOut, kErr, kErr, kErr}) {}
 void wlib::Logger::_print(const char buffer[], const Level level) const{
 	//[STAT] 2017-10-15 03:47:24 Th:[thread_no] [filename.cpp]::[function]([line])
-	//_____[text]
-	//_____[multi text]
-	//<br />
 
 	//error check
-	if (text.empty()) return;
+	std::string buffer_str(buffer);
+	if (buffer_str.size() == 0) return;
 
 	//log level
-	if (static_cast<unsigned int>(status) < static_cast<unsigned int>(log_level_)) return;
+	if (static_cast<size_t>(level) < static_cast<size_t>(kShowLogLevel)) return;
 	
-	//multi line text split
-	std::vector<std::string> multiline_text;
-	std::string line_text("");
-	std::stringstream ss{ text };
-	while (std::getline(ss, line_text, '\n')) multiline_text.push_back(line_text);
-
 	//get the now date and time
 	const auto now = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
 	const std::tm * local_now(std::localtime(&now));
@@ -92,55 +92,35 @@ void wlib::Logger::_print(const char buffer[], const Level level) const{
 
 	//formatting status string
 	std::stringstream output_text_sstream;
+	std::string reset_color_str;
 
 	//status text
-	switch (status) {
-	case kAbort:
-		output_text_sstream << changeColorToRed() << "ABRT"; break;
-	case kError:
-		output_text_sstream << changeColorToRed() << "ERRO"; break;
-	case kWarning:
-		output_text_sstream << changeColorToYellow() << "WARN"; break;
-	case kInfomation:
-	default:
-		output_text_sstream << "INFO"; break;
+	switch (level) {
+	case kTrace:		output_text_sstream << "TRACE"; break;
+	case kDebug:		output_text_sstream << "DEBUG"; break;
+	case kPerformance:	output_text_sstream << "PERF "; break;
+	case kInfo:			output_text_sstream << changeColorToGreen() << "INFO "; reset_color_str = resetColorStr(); break;
+	case kWarning:		output_text_sstream << changeColorToYellow() << "WARN "; reset_color_str = resetColorStr(); break;
+	case kError:		output_text_sstream << changeColorToRed() << "ERROR"; reset_color_str = resetColorStr(); break;
+	case kFatal:		output_text_sstream << changeColorToFatal() << "FATAL"; reset_color_str = resetColorStr(); break;
+	default: return;
 	}
 
-	// shorter filename
-	std::string short_file_(file_);
-	size_t fpos = short_file_.find_last_of("\\/");
-	if (fpos != std::string::npos) short_file_ = short_file_.substr(fpos + 1);
-
-	output_text_sstream << " " << std::put_time(local_now, "%F %T") << " Th:" << std::this_thread::get_id() << " " << short_file_ << "::" << func_ << "(" << line_ << ")";
-	
-	if (multiline_text.size() == 1) output_text_sstream << " " << *multiline_text.begin() << std::endl;
-	else {
-		output_text_sstream << std::endl;
-		for (auto line_text_p = multiline_text.begin(); line_text_p != multiline_text.end(); ++line_text_p) {
-			output_text_sstream << "     " << *line_text_p << std::endl;
-		}
-		output_text_sstream << std::endl;
-	}
+	output_text_sstream << " " << std::put_time(local_now, "%F %T") << " Th:" << std::this_thread::get_id();
+	output_text_sstream << " | " << buffer_str;
 
 	//for thread safe, lock with mutex
 	{
 		std::lock_guard<std::mutex> lock(_mutex);
 		
 		//write down to standard io
-		std::cerr << output_text_sstream.str() << resetColorStr();
+		output_text_sstream << reset_color_str;
+
+		if (this->_distinations.at(level) == kOut) std::fprintf(stdout, output_text_sstream.str().c_str());
+		else std::fprintf(stderr, output_text_sstream.str().c_str());
 	}
 
 	resetColorPrc();
-
-	if (status == kAbort) {
-#if _MSC_VER >= 1700
-		//Visual Studio 2012以上
-		std::string serr = this->file_ + ":" + this->func_ + "(" + std::to_string(this->line_) + ") " + text;
-		_RPT0(_CRT_ASSERT, serr);
-#endif
-		::abort();
-	}
-
 }
 
 // ======== Stream ========

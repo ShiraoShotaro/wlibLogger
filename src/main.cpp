@@ -3,7 +3,6 @@
 using namespace wlib;
 int main(void) {
 
-	LoggerStream hoge();
 	std::cout << "Before Redirect of cout" << std::endl;
 
 	std::cerr << "Before Redirect of cerr" << std::endl;
@@ -15,10 +14,6 @@ int main(void) {
 
 	std::cerr << "This is cerr output" << std::endl;
 
-	std::wcout << L"これはワイド文字wcout出力だよ" << std::endl;
-
-	std::wcerr << L"これはワイド文字wcerr出力だよ" << std::endl;
-
 	trace << "This is trace output" << std::endl;
 
 	debug << "This is debug output" << std::endl;
@@ -27,17 +22,9 @@ int main(void) {
 
 	warn << "This is warn output" << std::endl;
 
+	error << "This is error output" << std::endl;
+
 	fatal << "This is fatal output" << std::endl;
-
-	wtrace << L"This is trace output" << std::endl;
-
-	wdebug << L"This is debug output" << std::endl;
-
-	winfo << L"This is info output" << std::endl;
-
-	wwarn << L"This is warn output" << std::endl;
-
-	wfatal << L"This is fatal output" << std::endl;
 
 	trace << SRCINFO << "This is trace output" << std::endl;
 
@@ -47,18 +34,9 @@ int main(void) {
 
 	warn << SRCINFO << "This is warn output" << std::endl;
 
+	error << SRCINFO << "This is error output" << std::endl;
+
 	fatal << SRCINFO << "This is fatal output" << std::endl;
 
-
-	wtrace << WSRCINFO << L"This is trace output" << std::endl;
-
-	wdebug << WSRCINFO << L"This is debug output" << std::endl;
-
-	winfo << WSRCINFO << L"This is info output" << std::endl;
-
-	wwarn << WSRCINFO << L"This is warn output" << std::endl;
-	
-	wfatal << WSRCINFO << L"This is fatal output" << std::endl;
-
-
+	getchar();
 }
