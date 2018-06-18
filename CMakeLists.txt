@@ -8,7 +8,7 @@ include_directories(src/)
 file(GLOB_RECURSE logger_cpp_files src/*.cpp)
 file(GLOB_RECURSE logger_header_files src/*.hpp)
 set(EXECUTABLE_NAME "wlibLoggerTest")
-add_executable(${EXECUTABLE_NAME} ${jubeon_cpp_files} ${jubeon_header_files})
+add_executable(${EXECUTABLE_NAME} ${logger_cpp_files} ${logger_header_files})
 
 source_group("Logger" REGULAR_EXPRESSION "src/Logger.(cpp|hpp)")
 source_group("Test" FILES src/main.cpp)

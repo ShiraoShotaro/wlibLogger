@@ -1,95 +1,113 @@
 ﻿#define _CRT_SECURE_NO_WARNINGS
-
 #include "Logger.hpp"
 #include <mutex>
 #include <iomanip>
 #include <thread>
-#include <vector>
 #include <sstream>
 #include <chrono>
 #include <ctime>
-#include <fstream>
-
-jubeon::Logger::LogLevel jubeon::Logger::log_level_;
 
 namespace {
-	std::mutex _mutex;
+std::mutex _mutex;
 
+// Logging level
 #ifdef _DEBUG
-	constexpr jubeon::Logger::LogLevel kDefaultLogLevel = jubeon::Logger::kAll;
+constexpr wlib::Logger::Level kDefaultLogLevel = wlib::Logger::kTrace;
 #else
-	constexpr jubeon::Logger::LogLevel kDefaultLogLevel = jubeon::Logger::kErrorOnly;
+constexpr wlib::Logger::Level kDefaultLogLevel = wlib::Logger::kInfo;
 #endif
 
-// コンソール文字色付け
+// String Coloring
 #if defined(__unix__) || defined(__linux__)
-	//Linux向け、色エスケープが使えるもの
-	std::string changeColorToRed(void) { return "\033[31m"; }
-	std::string changeColorToYellow(void) { return "\033[33m"; }
-	std::string resetColorStr(void) { return "\033[0m"; }
-	void resetColorPrc(void) { }
-
+std::string changeColorToRed(void) { return "\033[31m"; }
+std::string changeColorToYellow(void) { return "\033[33m"; }
+std::string resetColorStr(void) { return "\033[0m"; }
+void resetColorPrc(void) {}
 #elif defined(_WIN64) || defined(_WIN32)
-	//クソったっれWindows専用
-	#include <windows.h>
-	std::string changeColorToRed(void) {
-		HANDLE hStdout = GetStdHandle(STD_OUTPUT_HANDLE);
-		SetConsoleTextAttribute(hStdout, FOREGROUND_RED | FOREGROUND_INTENSITY);
-		return "";
-	}
-	std::string changeColorToYellow(void) {
-		HANDLE hStdout = GetStdHandle(STD_OUTPUT_HANDLE);
-		SetConsoleTextAttribute(hStdout, FOREGROUND_GREEN | FOREGROUND_RED | FOREGROUND_INTENSITY);
-		return "";
-	}
-	std::string resetColorStr(void) { return ""; }
-	void resetColorPrc(void) {
-		HANDLE hStdout = GetStdHandle(STD_OUTPUT_HANDLE);
-		SetConsoleTextAttribute(hStdout, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
-	}
+#include <windows.h>
+std::string changeColorToRed(void){ SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_RED | FOREGROUND_INTENSITY); return ""; }
+std::string changeColorToYellow(void) { SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_GREEN | FOREGROUND_RED | FOREGROUND_INTENSITY); return ""; }
+std::string resetColorStr(void) { return ""; }
+void resetColorPrc(void){ SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE); }
 #endif
 
 };
 
+void wlib::Logger::setRedirectionCout(const Level dst_level)
+{
+}
 
-// コンストラクタ
-jubeon::Logger::Logger(const std::string file, const std::string func, const int line)
-	: file_(file), func_(func), line_(line)
-{}
+void wlib::Logger::setRedirectionCerr(const Level dst_level)
+{
+}
 
-// デストラクタ
-jubeon::Logger::~Logger() {
-	//Nothing to do.
+void wlib::Logger::setDestination(const Destination trace, const Destination performance, const Destination debug, const Destination info, const Destination warning, const Destination error, const Destination fatal)
+{
+}
+
+// Constructor(nop)
+wlib::Logger::Logger(void){}
+
+void wlib::Logger::_printTrace(const char buffer[]) const
+{
+}
+
+void wlib::Logger::_printPerformance(const char buffer[]) const
+{
+}
+
+void wlib::Logger::_printDebug(const char buffer[]) const
+{
+}
+
+void wlib::Logger::_printInformation(const char buffer[]) const
+{
+}
+
+void wlib::Logger::_printWarning(const char buffer[]) const
+{
+}
+
+void wlib::Logger::_printError(const char buffer[]) const
+{
+}
+
+void wlib::Logger::_printFatal(const char buffer[]) const
+{
+}
+
+void wlib::Logger::_print(const char buffer[], const Level level) const
+{
 }
 
 // INFORMATION
-void jubeon::Logger::information(const std::string & text) const{
+void wlib::Logger::information(const std::string & text) const{
 	this->_write(kInfomation, text);
 }
 
 // WARNING
-void jubeon::Logger::warning(const std::string & text) const{
+void wlib::Logger::warning(const std::string & text) const{
 	this->_write(kWarning, text);
 }
 
 // ERROR
-void jubeon::Logger::error(const std::string & text) const{
+void wlib::Logger::error(const std::string & text) const{
 	this->_write(kError, text);
 }
 
 // ABORT
-void jubeon::Logger::abort(const std::string & text) const{
+void wlib::Logger::abort(const std::string & text) const{
 	this->_write(kAbort, text);
 }
 
 // ログレベルの変更
-void jubeon::Logger::changeLogLevel(LogLevel log_level) {
+void wlib::Logger::changeLogLevel(LogLevel log_level) {
 	//for thread safe, lock with mutex
 	std::lock_guard<std::mutex> lock(_mutex);
 	this->log_level_ = log_level;
 }
 
-void jubeon::Logger::_write(const LogStatus status, const std::string & text) const{
+void wlib::Logger::_write(const LogStatus status, const std::string & text) const{
 	//[STAT] 2017-10-15 03:47:24 Th:[thread_no] [filename.cpp]::[function]([line])
 	//_____[text]
 	//_____[multi text]
@@ -169,21 +187,20 @@ void jubeon::Logger::_write(const LogStatus status, const std::string & text) co
 }
 
 // ======== Stream ========
-jubeon::LoggerStreambuf::LoggerStreambuf(const Logger::LogStatus _status, const std::string file, const std::string func, const int line)
+wlib::LoggerStreambuf::LoggerStreambuf(const Logger::LogStatus _status, const std::string file, const std::string func, const int line)
 	: Logger(file, func, line) ,status(_status){
 	setp(this->buffer, this->buffer + kBufferSize - 2);
 	setg(this->buffer, this->buffer, this->buffer + kBufferSize - 2);
 }
 
-jubeon::LoggerStreambuf::~LoggerStreambuf(){
+wlib::LoggerStreambuf::~LoggerStreambuf(){
 	this->sync();
 }
 
-int jubeon::LoggerStreambuf::sync(void){
+int wlib::LoggerStreambuf::sync(void){
 	*pptr() = '\0';    // 終端文字を追加します。
 	std::string temp(this->buffer);
 	if(!temp.empty() && temp.find_first_not_of("\n") != std::string::npos) this->_write(status, temp);
 	pbump(static_cast<int>(pbase() - pptr()));    // 書き込み位置をリセットします。
 	return 0;
 }
-
