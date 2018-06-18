@@ -14,14 +14,9 @@
 namespace {
 std::mutex _mutex;
 std::array<wlib::Logger::Destination, wlib::Logger::kLevelNum> _distinations
-	{wlib::Logger::kOut, wlib::Logger::kOut, wlib::Logger::kOut, wlib::Logger::kOut, wlib::Logger::kErr, wlib::Logger::kErr, wlib::Logger::kErr };
-
-// Logging level
-#ifdef _DEBUG
-constexpr wlib::Logger::Level kShowLogLevel = wlib::Logger::kTrace;
-#else
-constexpr wlib::Logger::Level kShowLogLevel = wlib::Logger::kInfo;
-#endif
+{ wlib::Logger::kOut, wlib::Logger::kOut, wlib::Logger::kOut, wlib::Logger::kOut, wlib::Logger::kErr, wlib::Logger::kErr, wlib::Logger::kErr };
+std::array<bool, wlib::Logger::kLevelNum> _enable_level{ false, false, false, true, true, true, true };
+bool _stdout_enable = false, _stderr_enable = true;
 
 // String Coloring
 #if defined(__unix__) || defined(__linux__)
@@ -72,6 +67,23 @@ void wlib::Logger::setRedirectionCerr(const Level dst_level){
 	}
 }
 
+void wlib::Logger::setOutputEnabled(bool stdout_enable, bool stderr_enable)
+{ _stdout_enable = stdout_enable; _stderr_enable = stderr_enable; }
+
+void wlib::Logger::setOutputEnabled(bool trace_enable, bool performance_enable, bool debug_enable, bool info_enable, bool warning_enable, bool error_enable, bool fatal_enable)
+{
+	_enable_level.at(kTrace) = trace_enable;
+	_enable_level.at(kPerformance) = performance_enable;
+	_enable_level.at(kDebug) = debug_enable;
+	_enable_level.at(kInfo) = info_enable;
+	_enable_level.at(kWarning) = warning_enable;
+	_enable_level.at(kError) = error_enable;
+	_enable_level.at(kFatal) = fatal_enable;
+}
+
+void wlib::Logger::setOutputAllDistinationEnabled(void) { setOutputEnabled(true, true, true, true, true, true, true); }
+void wlib::Logger::setOutputAllLevelEnabled(void) { setOutputEnabled(true, true); }
+
 wlib::Logger::Logger(void) {}
 void wlib::Logger::setDestination(const Destination trace, const Destination performance, const Destination debug, const Destination info, const Destination warning, const Destination error, const Destination fatal)
 {
@@ -90,8 +102,8 @@ std::string wlib::Logger::source_information(const std::string file, const std::
 void wlib::Logger::_print(const char buffer[], const Level level) const{
 	//[STAT] 2017-10-15 03:47:24 Th:[thread_no] [filename.cpp]::[function]([line])
 
-	//log level
-	if (static_cast<size_t>(level) < static_cast<size_t>(kShowLogLevel)) return;
+	if (!_enable_level.at(level)) return;
+	if (!(_distinations.at(level) == kOut && _stdout_enable) && !(_distinations.at(level) == kErr && _stderr_enable)) return;
 
 	std::string buffer_str(buffer);
 	if (buffer_str.find_first_of("\r\n\0") == 0) return;

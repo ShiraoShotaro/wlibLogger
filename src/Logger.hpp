@@ -92,22 +92,32 @@ public:
 	/// @brief [in] stdout Set true, and stdout output is enabled. Set false, it is disabled.
 	/// @brief [in] stderr Set true, and stderr output is enabled. Set false, it is disabled.
 	static void setOutputEnabled(
-		bool stdout,
-		bool stderr
+		bool stdout_enable,
+		bool stderr_enable
 	);
 
 	/// @brief set Enable or Disable output each of level.
 	///
 	/// This function is NOT threadsafe.
 	static void setOutputEnabled(
-		bool trace,
-		bool performance,
-		bool debug,
-		bool info,
-		bool warning,
-		bool error,
-		bool fatal
+		bool trace_enable,
+		bool performance_enable,
+		bool debug_enable,
+		bool info_enable,
+		bool warning_enable,
+		bool error_enable,
+		bool fatal_enable
 	);
+
+	/// @brief set all distination output enabled.
+	///
+	/// This function is NOT threadsafe.
+	static void setOutputAllDistinationEnabled(void);
+
+	/// @brief set all level output enabled.
+	///
+	/// This function is NOT threadsafe.
+	static void setOutputAllLevelEnabled(void);
 
 	/// @brief set log output destination.
 	///
